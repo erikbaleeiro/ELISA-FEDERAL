@@ -1,0 +1,10 @@
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+rich>=13.7.0
+colorama>=0.4.6
+GitPython>=3.1.40
+aiohttp>=3.9.0
+python-dateutil>=2.8.2
+pyyaml>=6.0.1
+click>=8.1.7
+tqdm>=4.66.0

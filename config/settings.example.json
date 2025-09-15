@@ -1,0 +1,53 @@
+{
+    "general": {
+        "version": "1.0.0",
+        "user_agent": "ELISA-FEDERAL/1.0 (Security Scanner; +https://github.com/erikbaleeiro/ELISA-FEDERAL)",
+        "timeout": 10,
+        "max_retries": 3,
+        "output_format": "markdown"
+    },
+    "scanner": {
+        "max_threads": 5,
+        "deep_scan": false,
+        "check_ssl": true,
+        "check_headers": true,
+        "check_content": true,
+        "check_directories": false,
+        "custom_wordlist": null,
+        "exclude_paths": [
+            "/admin",
+            "/login",
+            "/wp-admin"
+        ]
+    },
+    "monitor": {
+        "default_interval": 300,
+        "max_targets": 10,
+        "alert_threshold": 3,
+        "save_baselines": true,
+        "enable_notifications": false
+    },
+    "reporting": {
+        "output_directory": "reports",
+        "auto_cleanup": true,
+        "retention_days": 30,
+        "include_raw_data": false,
+        "export_formats": ["markdown", "json"],
+        "template_style": "default"
+    },
+    "security": {
+        "respect_robots_txt": true,
+        "max_request_rate": 10,
+        "enable_rate_limiting": true,
+        "whitelist_only": false,
+        "allowed_domains": [],
+        "blocked_domains": []
+    },
+    "logging": {
+        "log_level": "INFO",
+        "log_file": "logs/elisa.log",
+        "max_log_size": "10MB",
+        "backup_count": 5,
+        "console_output": true
+    }
+}
