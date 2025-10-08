@@ -1,0 +1,19 @@
+primary_stack:
+  cognition: qwen-2.5-coder-32b-instruct
+  coding: qwen-2.5-coder-32b-instruct
+  execution: qwen-2.5-coder-32b-instruct
+  multimodal:
+    images: llava-1.6-34b
+    audio: whisper-large-v3
+    generation: sdxl-turbo
+  memory:
+    embeddings: bge-large-en-v1.5
+    vector_db: qdrant
+    sql: sqlite
+fallback_stack:
+  emergency: gemini-2.0-flash-exp
+  critical: claude-sonnet-4.5
+monthly_cost: "$5"
+annual_cost: "$60"
+vs_cloud_only: "$780"
+savings: "92%"

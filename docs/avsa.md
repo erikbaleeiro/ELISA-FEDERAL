@@ -2,14 +2,30 @@
 
 The Automated Voice Software Agent (AVSA) is a collaborative team of AI-powered services designed to deliver fully automated software development from voice instructions. AVSA combines speech interfaces, intelligent orchestration, contextual knowledge management, automated coding, and continuous testing so that a single voice command can launch an entire development lifecycle.
 
-## ✅ Resumo de decisão
+## ✅ Resumo de decisão (Zero Cost First)
 
-| Função                                    | Melhor modelo    |
-|-------------------------------------------|------------------|
-| Pensar, planejar, decompor tarefa         | 🧠 Claude 4.5    |
-| Gerar e refinar código complexo           | ⚙️ GPT-5         |
-| Executar local, aprender contigo          | 💪 Qwen-Sigma    |
-| Mostrar imagens, vídeos, multimídia       | 🎬 Gemini 2.5 Pro |
+```yaml
+cognição:
+  primário: qwen-2.5-coder-32b-instruct   # local, $0
+  fallback: claude-sonnet-4.5             # nuvem, só em edge cases
+
+codificação:
+  primário: qwen-2.5-coder-32b-instruct   # cobre 90% dos casos
+  secundário: deepseek-coder-v2-lite-16b  # python rápido, 12 GB VRAM
+  terciário: deepseek-r1                  # matemática pesada
+
+multimodal:
+  imagens: llava-v1.6-34b                # análise e OCR local
+  áudio: whisper-large-v3                # transcrição local
+  geração: sdxl-turbo + controlnet       # criação local
+
+contexto:
+  rag_local: haystack + bge-large-en-v1.5 + qdrant
+  fallback_grátis: gemini-2.0-flash-exp  # até 1M tokens/dia
+
+custo_mensal_estimado: "$5"
+economia_vs_cloud: "92%"
+```
 
 ## System Overview
 
@@ -45,15 +61,36 @@ This loop repeats automatically until the user confirms completion or provides n
 - **Natural Collaboration:** Voice-first interaction allows stakeholders to contribute without writing prompts or technical specifications.
 - **Rapid Iteration:** Immediate feedback and code regeneration shorten debugging cycles and accelerate delivery.
 
+## 🧠 Estratégia Ultra-Realista
+
+- **Local primeiro sempre:** GPUs consumidoras (RTX 3090/4090) rodam Qwen-32B em 4-bit com ~20 GB de VRAM.
+- **Cache agressivo + batch:** reutiliza respostas em 7/30/90 dias e processa lotes para economizar tokens.
+- **Prompt compression:** `llmlingua` reduz prompts em ~50% sem perder contexto crítico.
+- **RAG local:** Haystack + BGE embeddings + Qdrant oferecem contexto virtualmente infinito sem custo recorrente.
+- **Fallback consciente:** só recorrer a Claude 4.5 ou Gemini Flash quando o roteador sinalizar que o local não atende.
+
 ## Implementation Blueprint
 
 1. **Configure APIs:** Provision Google Cloud Speech services and Gemini Live credentials for real-time transcription and synthesis.
 2. **Install Dependencies:** `pip install crewai haystack l2mac SpeechRecognition pyttsx3` plus any platform-specific drivers (e.g., `pyaudio`).
 3. **Build the Voice Interface:** Combine SpeechRecognition for microphone input with Gemini Live for transcription and pyttsx3 (or Google Cloud TTS) for spoken responses.
 4. **Define CrewAI Agents:** Describe each agent’s role, goals, and accessible tools, then assemble them into a collaborative crew with the project manager orchestrator.
-5. **Expose Tools:** Wrap Haystack search pipelines and L2MAC code generation endpoints so CrewAI agents can call them programmatically.
-6. **Conversation Loop:** Continuously capture voice commands, send them to CrewAI, receive structured responses, and present the results via speech and optional text dashboards.
-7. **Continuous Improvement:** Expand the agent set with deployment, monitoring, or documentation roles to evolve AVSA into a full DevOps assistant.
+5. **Expose Tools:** Wrap Haystack search pipelines e o `ZeroCostRouter` para CrewAI ativar Qwen/DeepSeek localmente, usando Gemini Flash só como tier gratuito.
+6. **Conversation Loop:** Use `scripts/avsa_loop.py` para rodar o fluxo com seleção automática de modelo e logging persistente.
+7. **Continuous Improvement:** Adicione agentes de deploy/monitoramento mantendo o princípio "custo zero primeiro".
+
+## ⚡ ZeroCostRouter em ação
+
+```python
+from scripts.avsa_loop import TaskRequest, ZeroCostRouter, infer_task_profile
+
+router = ZeroCostRouter()
+profile = infer_task_profile("Planeja arquitetura crítica complexa")
+model = router.route(TaskRequest(instruction="...", **profile))
+print(model)  # claude-sonnet-4.5 apenas se for realmente crítico
+```
+
+O roteador avalia tipo de tarefa, complexidade, criticidade e uso diário antes de escalar para nuvem. A fila de feedback informa o modelo usado em cada iteração, garantindo rastreabilidade.
 
 ## Referência de implementação rápida
 

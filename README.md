@@ -143,7 +143,8 @@ ELISA-FEDERAL/
 │   ├── monitor.py      # 👁️ Monitor em tempo real
 │   └── reporter.py     # 📄 Gerador de relatórios
 ├── config/             # ⚙️ Configurações
-│   └── settings.example.json
+│   ├── settings.example.json
+│   └── zero_cost_stack.yaml  # 🧠 Stack local-first do AVSA
 ├── scripts/            # 🛠️ Scripts auxiliares
 │   ├── auto-deploy.sh  # 🚀 Deploy automático
 │   └── avsa_loop.py    # 🤖 Loop mínimo do AVSA
@@ -175,6 +176,14 @@ cp config/settings.example.json config/settings.json
     "report_retention_days": 30
 }
 ```
+
+### Stack AVSA custo zero
+
+```bash
+cat config/zero_cost_stack.yaml
+```
+
+Esse YAML consolida o roteamento local-first (Qwen, DeepSeek, LLaVA, Whisper) com fallback raro para Claude e Gemini Flash. O `scripts/avsa_loop.py` consome o mesmo arranjo via `ZeroCostRouter`, garantindo custo operacional mínimo.
 
 ### Variáveis de Ambiente
 
