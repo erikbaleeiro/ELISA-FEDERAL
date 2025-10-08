@@ -145,9 +145,11 @@ ELISA-FEDERAL/
 ├── config/             # ⚙️ Configurações
 │   └── settings.example.json
 ├── scripts/            # 🛠️ Scripts auxiliares
-│   └── auto-deploy.sh  # 🚀 Deploy automático
+│   ├── auto-deploy.sh  # 🚀 Deploy automático
+│   └── avsa_loop.py    # 🤖 Loop mínimo do AVSA
 ├── docs/               # 📚 Documentação
-│   └── usage.md        # 📖 Guia de uso
+│   ├── usage.md        # 📖 Guia de uso
+│   └── avsa.md         # 🤖 Guia do agente de voz
 ├── logs/               # 📝 Arquivos de log
 ├── reports/            # 📄 Relatórios gerados
 └── cache/              # 🗄️ Cache temporário

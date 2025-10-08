@@ -2,6 +2,15 @@
 
 The Automated Voice Software Agent (AVSA) is a collaborative team of AI-powered services designed to deliver fully automated software development from voice instructions. AVSA combines speech interfaces, intelligent orchestration, contextual knowledge management, automated coding, and continuous testing so that a single voice command can launch an entire development lifecycle.
 
+## ✅ Resumo de decisão
+
+| Função                                    | Melhor modelo    |
+|-------------------------------------------|------------------|
+| Pensar, planejar, decompor tarefa         | 🧠 Claude 4.5    |
+| Gerar e refinar código complexo           | ⚙️ GPT-5         |
+| Executar local, aprender contigo          | 💪 Qwen-Sigma    |
+| Mostrar imagens, vídeos, multimídia       | 🎬 Gemini 2.5 Pro |
+
 ## System Overview
 
 AVSA relies on a set of specialized agents coordinated by CrewAI:
@@ -45,6 +54,10 @@ This loop repeats automatically until the user confirms completion or provides n
 5. **Expose Tools:** Wrap Haystack search pipelines and L2MAC code generation endpoints so CrewAI agents can call them programmatically.
 6. **Conversation Loop:** Continuously capture voice commands, send them to CrewAI, receive structured responses, and present the results via speech and optional text dashboards.
 7. **Continuous Improvement:** Expand the agent set with deployment, monitoring, or documentation roles to evolve AVSA into a full DevOps assistant.
+
+## Referência de implementação rápida
+
+O script `scripts/avsa_loop.py` entrega um laço de conversação mínimo com ganchos para Gemini Live, Haystack e L2MAC. Ele usa entrada de texto como fallback quando as credenciais de voz não estão configuradas, garantindo validação rápida do fluxo sem dependências pesadas.
 
 ## Example Voice Session
 
