@@ -143,11 +143,17 @@ ELISA-FEDERAL/
 │   ├── monitor.py      # 👁️ Monitor em tempo real
 │   └── reporter.py     # 📄 Gerador de relatórios
 ├── config/             # ⚙️ Configurações
-│   └── settings.example.json
+│   ├── settings.example.json
+│   ├── zero_cost_stack.yaml  # 🧠 Stack local-first do AVSA
+│   └── deploy/               # 🚀 Configs prontas (Render/Vercel)
+│       ├── render.yaml
+│       └── vercel.json
 ├── scripts/            # 🛠️ Scripts auxiliares
-│   └── auto-deploy.sh  # 🚀 Deploy automático
+│   ├── auto-deploy.sh  # 🚀 Deploy automático
+│   └── avsa_loop.py    # 🤖 Loop mínimo do AVSA
 ├── docs/               # 📚 Documentação
-│   └── usage.md        # 📖 Guia de uso
+│   ├── usage.md        # 📖 Guia de uso
+│   └── avsa.md         # 🤖 Guia do agente de voz
 ├── logs/               # 📝 Arquivos de log
 ├── reports/            # 📄 Relatórios gerados
 └── cache/              # 🗄️ Cache temporário
@@ -173,6 +179,21 @@ cp config/settings.example.json config/settings.json
     "report_retention_days": 30
 }
 ```
+
+### Stack AVSA custo zero
+
+```bash
+cat config/zero_cost_stack.yaml
+```
+
+Esse YAML consolida o roteamento híbrido (Qwen, DeepSeek, LLaVA, Whisper + fallback Claude/Gemini). Agora ele também aponta o backend FastAPI no Render.com e o frontend Next.js na Vercel. Consulte `config/deploy/render.yaml` e `config/deploy/vercel.json` para subir tudo em minutos.
+
+### Arquitetura Erik Stack
+
+- Frontend visual com Builder.io → Locofy.ai → Next.js (deploy na Vercel).
+- Backend FastAPI no Render.com com `SmartRouter` ativando GPU sob demanda (RunPod/Vast.ai).
+- Roteamento automático: Gemini Flash para simples, Qwen/DeepSeek locais para código, Claude/GPT-4o só quando necessário.
+- Documentação detalhada em [`docs/avsa.md`](docs/avsa.md) com custos reais e plano de deploy.
 
 ### Variáveis de Ambiente
 
@@ -310,6 +331,7 @@ Veja a lista completa de [contribuidores](https://github.com/erikbaleeiro/ELISA-
 
 - 📖 **Wiki:** [GitHub Wiki](https://github.com/erikbaleeiro/ELISA-FEDERAL/wiki)
 - 📚 **Docs:** [Documentação Completa](docs/)
+- 🗣️ **AVSA:** [Automated Voice Software Agent](docs/avsa.md)
 - 🎥 **Tutoriais:** [YouTube Playlist](#)
 
 ### Comunidade

@@ -1,0 +1,82 @@
+primary_stack:
+  cognition:
+    model: qwen-2.5-coder-32b-instruct
+    location: gpu_rental
+    provider: runpod
+  coding:
+    heavy: qwen-2.5-coder-32b-instruct
+    medium: deepseek-coder-v2-lite-16b
+    math: deepseek-r1
+  execution:
+    orchestrator: crewai
+    router: smart_router
+    context: haystack
+  multimodal:
+    images: llava-1.6-34b
+    audio: whisper-large-v3
+    generation: sdxl-turbo
+  memory:
+    embeddings: bge-large-en-v1.5
+    vector_db: qdrant
+    relational: sqlite
+backend:
+  framework: fastapi
+  deploy: render.com
+  router: smart_router
+  env:
+    - GPU_SSH_HOST
+    - GPU_SSH_PORT
+    - GPU_SSH_USER
+    - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
+frontend:
+  design: builder.io
+  accelerator: locofy.ai
+  framework: next.js
+  deploy: vercel
+  env:
+    NEXT_PUBLIC_API_URL: https://sigma-api.onrender.com
+cloud_fallback:
+  free:
+    gemini_flash: gemini-2.0-flash-exp
+  paid:
+    reasoning: claude-sonnet-4.5
+    multimodal: gpt-4o
+    safety: claude-sonnet-4.5
+gpu_pool:
+  provider: runpod
+  descriptor: RTX-3090
+  hourly_cost_usd: 0.40
+  auto_start:
+    backlog_threshold: 5
+    runtime_threshold_seconds: 600
+  models:
+    - qwen-2.5-coder-32b-instruct
+    - deepseek-coder-v2-lite-16b
+    - llava-1.6-34b
+    - whisper-large-v3
+cost_profiles:
+  hobby:
+    vercel: $0
+    render: $0
+    apis: $15
+    gpu_hours: 10
+    gpu_cost: $4
+    total: $19-23
+  freelancer:
+    vercel: $20
+    render: $7
+    apis: $60
+    gpu_hours: 70
+    gpu_cost: $28
+    total: $111-119
+  agency:
+    vercel: $20
+    render: $25
+    apis: $120
+    gpu_hours: 720
+    gpu_cost: $250
+    total: $415
+savings:
+  vs_cloud_only_monthly: $65 -> $19 (hobby)
+  annual_roi_gpu_purchase: 3.5_years

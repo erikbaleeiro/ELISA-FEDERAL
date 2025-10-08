@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: sigma-api
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GPU_SSH_HOST
+        value: ssh.runpod.io
+      - key: GPU_SSH_PORT
+        value: "22"
+      - key: GPU_SSH_USER
+        value: root
