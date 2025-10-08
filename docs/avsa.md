@@ -5,27 +5,59 @@ The Automated Voice Software Agent (AVSA) is a collaborative team of AI-powered 
 ## ✅ Resumo de decisão (Zero Cost First)
 
 ```yaml
-cognição:
-  primário: qwen-2.5-coder-32b-instruct   # local, $0
-  fallback: claude-sonnet-4.5             # nuvem, só em edge cases
+camada_cognição:
+  primário: qwen-2.5-coder-32b-instruct   # roda na GPU alugada
+  fallback: claude-sonnet-4.5             # só quando a tarefa explode
 
-codificação:
-  primário: qwen-2.5-coder-32b-instruct   # cobre 90% dos casos
-  secundário: deepseek-coder-v2-lite-16b  # python rápido, 12 GB VRAM
-  terciário: deepseek-r1                  # matemática pesada
+camada_código:
+  pesado: qwen-2.5-coder-32b-instruct     # arquitetura, refatoração séria
+  médio: deepseek-coder-v2-lite-16b       # python/js diário
+  matemático: deepseek-r1                 # otimização hardcore
 
-multimodal:
-  imagens: llava-v1.6-34b                # análise e OCR local
-  áudio: whisper-large-v3                # transcrição local
-  geração: sdxl-turbo + controlnet       # criação local
+camada_multimodal:
+  imagem: llava-v1.6-34b
+  áudio: whisper-large-v3
+  geração: sdxl-turbo + controlnet
 
-contexto:
+camada_contexto:
   rag_local: haystack + bge-large-en-v1.5 + qdrant
-  fallback_grátis: gemini-2.0-flash-exp  # até 1M tokens/dia
+  fallback_grátis: gemini-2.0-flash-exp
 
-custo_mensal_estimado: "$5"
+deploy:
+  frontend: vercel (builder.io + locofy + next.js)
+  backend: render.com (fastapi + smart_router)
+  gpu_pool: runpod/vast.ai (qwen-32b, llava, whisper)
+
+custo_médio_mensal: "$19-23"  # perfil hobby
 economia_vs_cloud: "92%"
 ```
+
+## 🏗️ Arquitetura "Erik Stack"
+
+```
+┌─────────────────────────────────────────────────┐
+│  FRONTEND (Visual)                              │
+│  Builder.io → Locofy.ai → React/Next.js        │
+│  Deploy: Vercel (free/pro tiers)               │
+└─────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────┐
+│  BACKEND (Orquestração)                        │
+│  FastAPI + SmartRouter + Haystack              │
+│  Deploy: Render.com (free/starter tiers)       │
+└─────────────────────────────────────────────────┘
+                        ↓
+            ┌───────────┴───────────┐
+            ↓                       ↓
+┌─────────────────────┐   ┌─────────────────────┐
+│  APIs em Nuvem      │   │  GPU Alugada        │
+│  Claude 4.5         │   │  RunPod / Vast.ai   │
+│  GPT-4o             │   │  Qwen-32B, LLaVA    │
+│  Gemini Flash       │   │  Whisper, SDXL      │
+└─────────────────────┘   └─────────────────────┘
+```
+
+Tudo gira em torno do **SmartRouter**: ele roda no backend FastAPI, mede backlog, complexidade e custo, liga/desliga a GPU alugada e decide se a tarefa fica no Qwen local, no Gemini gratuito ou escala para Claude/GPT-4o.
 
 ## System Overview
 
@@ -61,6 +93,16 @@ This loop repeats automatically until the user confirms completion or provides n
 - **Natural Collaboration:** Voice-first interaction allows stakeholders to contribute without writing prompts or technical specifications.
 - **Rapid Iteration:** Immediate feedback and code regeneration shorten debugging cycles and accelerate delivery.
 
+## 🚦 SmartRouter & GPU sob demanda
+
+- **Tarefas simples (complexidade ≤ 4):** Gemini Flash grátis direto, zero custo.
+- **Código médio (≤ 7):** Qwen-32B/DeepSeek na GPU alugada. Se a GPU estiver desligada e o backlog ≥ 5 tarefas ou a estimativa ≥ 10 min, o SmartRouter liga a instância RunPod/Vast.ai automaticamente.
+- **Multimodal:** LLaVA/Whisper locais quando a GPU está on-line; fallback GPT-4o só se estiver tudo desligado.
+- **Crítico/complexo:** Claude Sonnet 4.5 sem rodeios.
+- **Logs estruturados:** cada decisão gera provider + notas no `logs/avsa_history.log`.
+
+O código referencial está em `scripts/avsa_loop.py` com as classes `TaskBacklog`, `GPUConnector` e `SmartRouter` integradas.
+
 ## 🧠 Estratégia Ultra-Realista
 
 - **Local primeiro sempre:** GPUs consumidoras (RTX 3090/4090) rodam Qwen-32B em 4-bit com ~20 GB de VRAM.
@@ -79,18 +121,25 @@ This loop repeats automatically until the user confirms completion or provides n
 6. **Conversation Loop:** Use `scripts/avsa_loop.py` para rodar o fluxo com seleção automática de modelo e logging persistente.
 7. **Continuous Improvement:** Adicione agentes de deploy/monitoramento mantendo o princípio "custo zero primeiro".
 
+## 🚢 Deploy Híbrido (Render + GPU alugada)
+
+1. **Frontend:** gerar UI no Builder.io → exportar com Locofy.ai → rodar Next.js. O arquivo `config/deploy/vercel.json` já deixa o deploy plug-and-play na Vercel.
+2. **Backend FastAPI:** implemente o roteador na FastAPI, empacote no repositório e use `config/deploy/render.yaml` para subir no Render.com (starter tier fica em ~US$7/mês).
+3. **GPU sob demanda:** alugue RunPod/Vast.ai quando necessário, aponte `GPU_SSH_HOST/PORT/USER` no Render e deixe o `GPUConnector` ligar/desligar o worker (veja a classe no script de loop).
+4. **APIs externas:** mantenha as chaves em variáveis de ambiente seguras no Render (Anthropic/OpenAI/Gemini).
+
 ## ⚡ ZeroCostRouter em ação
 
 ```python
-from scripts.avsa_loop import TaskRequest, ZeroCostRouter, infer_task_profile
+from scripts.avsa_loop import SmartRouter, TaskBacklog, TaskRequest, infer_task_profile
 
-router = ZeroCostRouter()
+router = SmartRouter(backlog=TaskBacklog())
 profile = infer_task_profile("Planeja arquitetura crítica complexa")
-model = router.route(TaskRequest(instruction="...", **profile))
-print(model)  # claude-sonnet-4.5 apenas se for realmente crítico
+decision = router.route(TaskRequest(instruction="...", **profile))
+print(decision)
 ```
 
-O roteador avalia tipo de tarefa, complexidade, criticidade e uso diário antes de escalar para nuvem. A fila de feedback informa o modelo usado em cada iteração, garantindo rastreabilidade.
+O SmartRouter calcula backlog, tempo estimado e custo antes de escalar para nuvem. O `decision` retorna modelo, provedor e notas — os mesmos campos gravados no `logs/avsa_history.log`.
 
 ## Referência de implementação rápida
 
@@ -108,6 +157,16 @@ O script `scripts/avsa_loop.py` entrega um laço de conversação mínimo com ga
 ```
 
 Each command flows through the pipeline above, triggering coordinated planning, research, coding, testing, and refactoring steps until the software meets the evolving specification.
+
+## 💰 Perfis de custo realistas
+
+| Perfil | Frontend | Backend | APIs | GPU | Total mensal |
+|--------|----------|---------|------|-----|---------------|
+| Hobby (10-20h) | Vercel $0 | Render $0 | $15 | $4-8 | **$19-23** |
+| Freelancer (60-80h) | Vercel $20 | Render $7 | $60 | $24-32 | **$111-119** |
+| Agência (24/7) | Vercel $20 | Render $25 | $120 | $250 | **$415** |
+
+Os números estão refletidos em `config/zero_cost_stack.yaml`, que também lista economia anual e thresholds de auto-start da GPU.
 
 ## Next Steps
 

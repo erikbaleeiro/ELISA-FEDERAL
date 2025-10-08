@@ -1,7 +1,8 @@
-"""AVSA conversational loop com fallback textual.
+"""AVSA conversational loop com SmartRouter híbrido.
 
 Executa fluxo "feijão com arroz" entre instruções de voz/texto e agentes
-CrewAI placeholders. Substitua os stubs pelas integrações reais.
+CrewAI placeholders. Agora inclui roteamento automático Gemini/GPU/Claude e
+registro estruturado para rodar no backend FastAPI + Render.
 """
 from __future__ import annotations
 
@@ -13,6 +14,25 @@ import time
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Callable, Dict, Iterable, List, Optional
+
+
+class TaskBacklog:
+    def __init__(self) -> None:
+        self._size = 0
+        self._lock = threading.Lock()
+
+    def push(self) -> None:
+        with self._lock:
+            self._size += 1
+
+    def complete(self) -> None:
+        with self._lock:
+            if self._size:
+                self._size -= 1
+
+    def size(self) -> int:
+        with self._lock:
+            return self._size
 
 
 @dataclass
@@ -30,6 +50,7 @@ class TaskRequest:
     critical: bool = False
     context_size: int = 0
     media_type: Optional[str] = None
+    estimated_seconds: int = 120
     context: Dict[str, str] = field(default_factory=dict)
 
 
@@ -38,6 +59,13 @@ class TaskResult:
     status: str
     output: str
     artifacts: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class RoutingDecision:
+    model: str
+    provider: str
+    notes: str
 
 
 class VoiceIO:
@@ -170,6 +198,125 @@ class ZeroCostRouter:
 
         return "qwen-2.5-coder-32b"
 
+    def route_local(self, task: TaskRequest) -> str:
+        return self._get_local_model(task)
+
+
+class GPUConnector:
+    def __init__(self, boot_seconds: int = 30) -> None:
+        self.host = os.getenv("GPU_SSH_HOST", "ssh.runpod.io")
+        self.port = int(os.getenv("GPU_SSH_PORT", "22"))
+        self.user = os.getenv("GPU_SSH_USER", "root")
+        self.boot_seconds = boot_seconds
+        self.instance_label = os.getenv("GPU_INSTANCE", "RTX-3090")
+        self.provider = os.getenv("GPU_PROVIDER", "runpod")
+        self._online = False
+        self._last_boot = 0.0
+
+    def is_online(self) -> bool:
+        return self._online
+
+    def should_boot(self, backlog_size: int, estimated_seconds: int) -> bool:
+        if backlog_size >= 5:
+            return True
+        if estimated_seconds >= 600:
+            return True
+        return False
+
+    def start_worker(self) -> None:
+        self._online = True
+        self._last_boot = time.time()
+
+    def stop_worker(self) -> None:
+        self._online = False
+
+    def descriptor(self) -> str:
+        return f"{self.provider}:{self.instance_label}"
+
+
+class SmartRouter:
+    def __init__(
+        self,
+        backlog: TaskBacklog,
+        local_router: Optional[ZeroCostRouter] = None,
+        gpu_connector: Optional[GPUConnector] = None,
+    ) -> None:
+        self.backlog = backlog
+        self.local_router = local_router or ZeroCostRouter()
+        self.gpu_connector = gpu_connector or GPUConnector()
+        self.usage_tracker = self.local_router.usage_tracker
+
+    def route(self, task: TaskRequest) -> RoutingDecision:
+        self.usage_tracker.add_usage(len(task.instruction))
+        gpu_label = self.gpu_connector.descriptor()
+
+        if task.complexity <= 4 and not task.critical:
+            return RoutingDecision(
+                model="gemini-2.0-flash-exp",
+                provider="cloud-free",
+                notes="Tarefa simples roteada para Gemini Flash (free tier).",
+            )
+
+        if task.task_type == "coding" and task.complexity <= 7:
+            if self._ensure_gpu(task):
+                model = self.local_router.route_local(task)
+                return RoutingDecision(
+                    model=model,
+                    provider="gpu-rental",
+                    notes=f"Código médio executado via GPU sob demanda ({gpu_label}).",
+                )
+            return RoutingDecision(
+                model="claude-sonnet-4.5",
+                provider="cloud-paid",
+                notes="Sem GPU ativa, desviando código médio para Claude.",
+            )
+
+    
+        if task.task_type == "multimedia":
+            if self._ensure_gpu(task):
+                local_model = "llava-1.6-34b" if task.media_type == "image" else "whisper-large-v3"
+                return RoutingDecision(
+                    model=local_model,
+                    provider="gpu-rental",
+                    notes=f"Multimodal atendido pela GPU local ({gpu_label}).",
+                )
+            return RoutingDecision(
+                model="gpt-4o",
+                provider="cloud-paid",
+                notes="GPU offline, utilizando GPT-4o para multimodal.",
+            )
+
+        if task.complexity >= 9 or task.critical:
+            return RoutingDecision(
+                model="claude-sonnet-4.5",
+                provider="cloud-paid",
+                notes="Tarefa crítica/complexa escalada direto para Claude.",
+            )
+
+        if self._ensure_gpu(task):
+            model = self.local_router.route_local(task)
+            return RoutingDecision(
+                model=model,
+                provider="gpu-rental",
+                notes=f"Fallback padrão priorizando modelo local na GPU ({gpu_label}).",
+            )
+
+        return RoutingDecision(
+            model="claude-sonnet-4.5",
+            provider="cloud-paid",
+            notes="Fallback final para Claude Sonnet.",
+        )
+
+    def _ensure_gpu(self, task: TaskRequest) -> bool:
+        if self.gpu_connector.is_online():
+            return True
+        backlog_size = self.backlog.size()
+        if self.gpu_connector.should_boot(backlog_size, task.estimated_seconds):
+            self.gpu_connector.start_worker()
+            time.sleep(min(self.gpu_connector.boot_seconds, 3))
+            return True
+        return False
+
     def _can_run_local(self, task: TaskRequest) -> bool:
         if task.task_type == "planning" and task.complexity <= 8:
             return True
@@ -200,6 +347,18 @@ class ZeroCostRouter:
         return False
 
 
+def estimate_duration(task_type: str, complexity: int) -> int:
+    base = {
+        "planning": 240,
+        "coding": 420,
+        "testing": 300,
+        "multimedia": 260,
+        "generic": 240,
+    }.get(task_type, 240)
+    adjustment = (complexity - 5) * 45
+    return max(90, base + adjustment)
+
+
 def infer_task_profile(instruction: str) -> Dict[str, object]:
     lowered = instruction.lower()
     profile: Dict[str, object] = {
@@ -208,6 +367,7 @@ def infer_task_profile(instruction: str) -> Dict[str, object]:
         "critical": "crit" in lowered or "urgente" in lowered,
         "context_size": 0,
         "media_type": None,
+        "estimated_seconds": 180,
     }
 
     if any(word in lowered for word in ("planeja", "plan", "roadmap")):
@@ -231,13 +391,18 @@ def infer_task_profile(instruction: str) -> Dict[str, object]:
     if any(word in lowered for word in ("simples", "básico", "feijão")):
         profile["complexity"] = min(profile["complexity"], 4)
 
+    profile["estimated_seconds"] = estimate_duration(
+        profile["task_type"], profile["complexity"]
+    )
+
     return profile
 
 
 def main() -> None:
     voice = VoiceIO()
     orchestrator = CrewOrchestrator(build_default_agents())
-    router = ZeroCostRouter()
+    backlog = TaskBacklog()
+    smart_router = SmartRouter(backlog=backlog)
     feedback_queue: "queue.Queue[str]" = queue.Queue()
 
     def announcer() -> None:
@@ -260,20 +425,34 @@ def main() -> None:
 
         profile = infer_task_profile(instruction)
         request = TaskRequest(instruction=instruction, **profile)
-        model_choice = router.route(request)
-        request.context["model"] = model_choice
-        router.usage_tracker.add_usage(len(instruction))
-        results = orchestrator.run(request)
+        decision = RoutingDecision(
+            model="claude-sonnet-4.5",
+            provider="cloud-paid",
+            notes="Fallback automático por exceção.",
+        )
+        results: List[TaskResult] = []
+        backlog.push()
+        try:
+            decision = smart_router.route(request)
+            request.context["model"] = decision.model
+            results = orchestrator.run(request)
+        except Exception as exc:  # noqa: BLE001
+            results = [TaskResult(status="failed", output=str(exc))]
+        finally:
+            backlog.complete()
 
         payload = {
             "timestamp": time.time(),
             "instruction": instruction,
-            "model": model_choice,
+            "routing": decision.__dict__,
             "results": [result.__dict__ for result in results],
         }
         persist_history(log_file, payload)
 
-        summary_lines = [f"Modelo: {model_choice}"]
+        summary_lines = [
+            f"Modelo: {decision.model} ({decision.provider})",
+            f"Rotas: {decision.notes}",
+        ]
         summary_lines.extend(f"{idx+1}. {res.output}" for idx, res in enumerate(results))
         feedback_queue.put("\n".join(summary_lines))
 

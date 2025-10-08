@@ -144,7 +144,10 @@ ELISA-FEDERAL/
 │   └── reporter.py     # 📄 Gerador de relatórios
 ├── config/             # ⚙️ Configurações
 │   ├── settings.example.json
-│   └── zero_cost_stack.yaml  # 🧠 Stack local-first do AVSA
+│   ├── zero_cost_stack.yaml  # 🧠 Stack local-first do AVSA
+│   └── deploy/               # 🚀 Configs prontas (Render/Vercel)
+│       ├── render.yaml
+│       └── vercel.json
 ├── scripts/            # 🛠️ Scripts auxiliares
 │   ├── auto-deploy.sh  # 🚀 Deploy automático
 │   └── avsa_loop.py    # 🤖 Loop mínimo do AVSA
@@ -183,7 +186,14 @@ cp config/settings.example.json config/settings.json
 cat config/zero_cost_stack.yaml
 ```
 
-Esse YAML consolida o roteamento local-first (Qwen, DeepSeek, LLaVA, Whisper) com fallback raro para Claude e Gemini Flash. O `scripts/avsa_loop.py` consome o mesmo arranjo via `ZeroCostRouter`, garantindo custo operacional mínimo.
+Esse YAML consolida o roteamento híbrido (Qwen, DeepSeek, LLaVA, Whisper + fallback Claude/Gemini). Agora ele também aponta o backend FastAPI no Render.com e o frontend Next.js na Vercel. Consulte `config/deploy/render.yaml` e `config/deploy/vercel.json` para subir tudo em minutos.
+
+### Arquitetura Erik Stack
+
+- Frontend visual com Builder.io → Locofy.ai → Next.js (deploy na Vercel).
+- Backend FastAPI no Render.com com `SmartRouter` ativando GPU sob demanda (RunPod/Vast.ai).
+- Roteamento automático: Gemini Flash para simples, Qwen/DeepSeek locais para código, Claude/GPT-4o só quando necessário.
+- Documentação detalhada em [`docs/avsa.md`](docs/avsa.md) com custos reais e plano de deploy.
 
 ### Variáveis de Ambiente
 
