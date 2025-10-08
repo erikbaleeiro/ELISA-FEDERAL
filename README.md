@@ -310,6 +310,7 @@ Veja a lista completa de [contribuidores](https://github.com/erikbaleeiro/ELISA-
 
 - 📖 **Wiki:** [GitHub Wiki](https://github.com/erikbaleeiro/ELISA-FEDERAL/wiki)
 - 📚 **Docs:** [Documentação Completa](docs/)
+- 🗣️ **AVSA:** [Automated Voice Software Agent](docs/avsa.md)
 - 🎥 **Tutoriais:** [YouTube Playlist](#)
 
 ### Comunidade
